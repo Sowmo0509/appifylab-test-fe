@@ -1,13 +1,26 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import api from '@/lib/axios';
+import { useAuth } from '@/components/AuthProvider';
 
 interface PostAuthor {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
+}
+
+interface LikePreviewUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
+interface PostLikePreview {
+  id: string;
+  userId: string;
+  user: LikePreviewUser;
 }
 
 interface Post {
@@ -18,7 +31,23 @@ interface Post {
   createdAt: string;
   author: PostAuthor;
   _count: { likes: number; comments: number };
-  likes: { id: string }[];
+  likePreview?: PostLikePreview[];
+  likedByMe?: boolean;
+}
+
+function initials(u: LikePreviewUser): string {
+  const a = (u.firstName?.[0] ?? '').toUpperCase();
+  const b = (u.lastName?.[0] ?? '').toUpperCase();
+  return (a + b) || '?';
+}
+
+function avatarBgForUserId(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash) % 360;
+  return `hsl(${h} 42% 46%)`;
 }
 
 interface FeedPostProps {
@@ -40,8 +69,16 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function FeedPost({ post, onInteraction }: FeedPostProps) {
-  const [liked, setLiked] = useState(post.likes.length > 0);
+  const { user: currentUser } = useAuth();
+  const [liked, setLiked] = useState(post.likedByMe ?? false);
   const [likeCount, setLikeCount] = useState(post._count.likes);
+  const [likers, setLikers] = useState<PostLikePreview[]>(post.likePreview ?? []);
+
+  useEffect(() => {
+    setLikers(post.likePreview ?? []);
+    setLiked(post.likedByMe ?? false);
+    setLikeCount(post._count.likes);
+  }, [post]);
   const [commentCount] = useState(post._count.comments);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
@@ -52,8 +89,28 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
   const handleLike = async () => {
     try {
       const res = await api.post(`/interactions/post/${post.id}/like`);
-      setLiked(res.data.liked);
-      setLikeCount((prev) => (res.data.liked ? prev + 1 : prev - 1));
+      const nowLiked = res.data.liked as boolean;
+      setLiked(nowLiked);
+      setLikeCount((prev) => (nowLiked ? prev + 1 : Math.max(0, prev - 1)));
+
+      if (currentUser) {
+        setLikers((prev) => {
+          if (nowLiked) {
+            const without = prev.filter((l) => l.user.id !== currentUser.id);
+            const selfEntry: PostLikePreview = {
+              id: `optimistic-${currentUser.id}`,
+              userId: currentUser.id,
+              user: {
+                id: currentUser.id,
+                firstName: currentUser.firstName,
+                lastName: currentUser.lastName,
+              },
+            };
+            return [selfEntry, ...without].slice(0, 4);
+          }
+          return prev.filter((l) => l.user.id !== currentUser.id);
+        });
+      }
     } catch (error) {
       console.error('Failed to like post', error);
     }
@@ -77,6 +134,10 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
       setLoadingComments(false);
     }
   };
+
+  const avatarLikers =
+    likeCount > 4 ? likers.slice(0, 4) : likers.slice(0, Math.min(likeCount, likers.length));
+  const likeOverflow = likeCount > 4 ? likeCount - 4 : 0;
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,9 +221,34 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
       </div>
       <div className="_feed_inner_timeline_total_reacts _padd_r24 _padd_l24 _mar_b26">
         <div className="_feed_inner_timeline_total_reacts_image">
-          <Image src="/assets/images/react_img1.png" alt="Image" className="_react_img1" width={100} height={100} />
-          <Image src="/assets/images/react_img2.png" alt="Image" className="_react_img" width={100} height={100} />
-          <p className="_feed_inner_timeline_total_reacts_para">{likeCount}</p>
+          {avatarLikers.map((like, i) => (
+            <div
+              key={like.id}
+              className={i === 0 ? '_react_img1' : '_react_img'}
+              title={`${like.user.firstName} ${like.user.lastName}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#fff',
+                flexShrink: 0,
+                width: 32,
+                height: 32,
+                minWidth: 32,
+                borderRadius: '50%',
+                overflow: 'hidden',
+                boxSizing: 'border-box',
+                background: avatarBgForUserId(like.user.id),
+              }}
+            >
+              {initials(like.user)}
+            </div>
+          ))}
+          {likeOverflow > 0 && (
+            <p className="_feed_inner_timeline_total_reacts_para">+{likeOverflow}</p>
+          )}
         </div>
         <div className="_feed_inner_timeline_total_reacts_txt">
           <p className="_feed_inner_timeline_total_reacts_para1">

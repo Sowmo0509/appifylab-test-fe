@@ -42,13 +42,14 @@ export default function RootLayout({
         {/* Responsive Css */}
         <link rel="stylesheet" href="/assets/css/responsive.css" />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body>
         <TooltipProvider>
           <AuthProvider>
             {children}
           </AuthProvider>
         </TooltipProvider>
         <Script src="/assets/js/bootstrap.bundle.min.js" strategy="beforeInteractive" />
+        <Script src="/assets/js/custom.js" strategy="afterInteractive" />
       </body>
     </html>
   );
