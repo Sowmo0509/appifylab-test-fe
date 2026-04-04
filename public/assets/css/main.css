@@ -1436,9 +1436,21 @@
 ._feed_inner_profile_story_image {
   position: relative;
   z-index: 2;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  overflow: hidden;
 }
 ._profile_story_img {
   border-radius: 6px;
+}
+._profile_story_placeholder {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+  background: var(--color3, #e8e8e8);
 }
 ._profile_wrapper {
   padding: 80px 0 0;
@@ -1459,10 +1471,11 @@
   background: #112032;
   border-radius: 25.5px 25.5px 6px 6px;
   padding: 30px 0 0;
-  z-index: 1;
+  z-index: 3;
   position: absolute;
   bottom: 0;
   width: 100%;
+  pointer-events: auto;
 }
 ._feed_inner_profile_story {
   cursor: pointer;
@@ -1581,6 +1594,54 @@
   max-width: 40px;
   border-radius: 50%;
   padding: 1px;
+}
+._create_post_attachment_preview {
+  margin-top: 12px;
+}
+._create_post_attachment_preview_frame {
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color3, #f0f0f0);
+  border: 1px solid var(--bg4, #eee);
+  max-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+._create_post_attachment_preview_img {
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  display: block;
+}
+._create_post_attachment_preview_bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+._create_post_attachment_preview_name {
+  color: var(--color7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+._create_post_attachment_preview_remove {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--color5);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+}
+._create_post_attachment_preview_remove:hover {
+  text-decoration: underline;
 }
 ._feed_inner_text_area {
   background: var(--bg2);
@@ -1728,7 +1789,9 @@
   font-size: 12px;
   color: var(--color7) 6;
 }
-._feed_inner_text_area_box_form > ._textarea:focus ~ ._feed_textarea_label {
+/* Hide floating label while typing or when field has content (not only on :focus) */
+._feed_inner_text_area_box_form > ._textarea:focus ~ ._feed_textarea_label,
+._feed_inner_text_area_box_form > ._textarea:not(:placeholder-shown) ~ ._feed_textarea_label {
   -webkit-transition: 0.2s all ease;
   -o-transition: 0.2s all ease;
   transition: 0.2s all ease;

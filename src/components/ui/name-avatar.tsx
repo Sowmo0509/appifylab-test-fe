@@ -8,13 +8,16 @@ export interface NameAvatarProps {
   size?: number;
   /** `md` = rounded rectangle (e.g. story cards); default `full` = circle */
   rounded?: 'full' | 'md';
+  /** Stretch to fill a sized parent (e.g. square story card with `aspect-ratio`) */
+  fill?: boolean;
   className?: string;
   title?: string;
 }
 
-export function NameAvatar({ user, size = 40, rounded = 'full', className, title }: NameAvatarProps) {
+export function NameAvatar({ user, size = 40, rounded = 'full', fill = false, className, title }: NameAvatarProps) {
   const label = title ?? `${user.firstName} ${user.lastName}`.trim();
   const borderRadius = rounded === 'md' ? 6 : '50%';
+  const fontSize = Math.max(10, Math.round(size * 0.36));
   return (
     <div
       className={cn(className)}
@@ -24,13 +27,24 @@ export function NameAvatar({ user, size = 40, rounded = 'full', className, title
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: size,
-        height: size,
-        minWidth: size,
+        ...(fill
+          ? {
+              position: 'absolute',
+              inset: 0,
+              width: 'auto',
+              height: 'auto',
+              minWidth: 0,
+              minHeight: 0,
+            }
+          : {
+              width: size,
+              height: size,
+              minWidth: size,
+            }),
         borderRadius,
         overflow: 'hidden',
         boxSizing: 'border-box',
-        fontSize: Math.max(10, Math.round(size * 0.36)),
+        fontSize,
         fontWeight: 600,
         color: '#fff',
         flexShrink: 0,

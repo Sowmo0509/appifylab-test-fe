@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import api from '@/lib/axios';
+import { resolveUploadUrl } from '@/lib/api-asset-url';
 import { useAuth } from '@/components/AuthProvider';
 import { NameAvatar } from '@/components/ui/name-avatar';
 
@@ -309,6 +310,8 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
   /** false = show latest comment only (+ View N previous when N≥1) */
   const [showAllComments, setShowAllComments] = useState(false);
 
+  const postImageSrc = resolveUploadUrl(post.imageUrl);
+
   useEffect(() => {
     setCommentCount(post._count.comments);
   }, [post]);
@@ -472,10 +475,10 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
           </div>
         </div>
         <h4 className="_feed_inner_timeline_post_title">{post.content}</h4>
-        {post.imageUrl && (
+        {postImageSrc ? (
           <div className="_feed_inner_timeline_image">
             <Image
-              src={post.imageUrl.startsWith('/') ? post.imageUrl : `/${post.imageUrl}`}
+              src={postImageSrc}
               alt=""
               className="_time_img"
               width={500}
@@ -483,7 +486,7 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
               style={{ width: '100%', height: 'auto' }}
             />
           </div>
-        )}
+        ) : null}
       </div>
       <div className="_feed_inner_timeline_total_reacts _padd_r24 _padd_l24 _mar_b26">
         <div className="_feed_inner_timeline_total_reacts_image">

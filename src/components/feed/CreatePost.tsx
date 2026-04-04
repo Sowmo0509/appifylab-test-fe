@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import api from '@/lib/axios';
 import { useAuth } from '@/components/AuthProvider';
@@ -14,8 +14,24 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
   const [content, setContent] = useState('');
   const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setImagePreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(selectedFile);
+    setImagePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedFile]);
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const handleSubmit = async () => {
     if (!content.trim() || submitting) return;
@@ -32,7 +48,7 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
       });
       setContent('');
       setVisibility('PUBLIC');
-      setSelectedFile(null);
+      clearSelectedFile();
       onPostCreated?.();
     } catch (error) {
       console.error('Failed to create post', error);
@@ -66,17 +82,9 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
             <div className="_feed_inner_profile_story _b_radious6 ">
               <div className="_feed_inner_profile_story_image">
                 {user ? (
-                  <NameAvatar user={user} size={100} rounded="md" className="_profile_story_img" />
+                  <NameAvatar user={user} size={100} rounded="md" fill className="_profile_story_img" />
                 ) : (
-                  <div
-                    className="_profile_story_img"
-                    style={{
-                      width: 100,
-                      height: 100,
-                      borderRadius: 6,
-                      background: 'var(--color3, #e8e8e8)',
-                    }}
-                  />
+                  <div className="_profile_story_img _profile_story_placeholder" aria-hidden />
                 )}
                 <div className="_feed_inner_story_txt">
                   <div className="_feed_inner_story_btn">
@@ -94,7 +102,14 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
           <div className="col-xl-3 col-lg-3 col-md-4 col-sm-4 col">
             <div className="_feed_inner_public_story _b_radious6">
               <div className="_feed_inner_public_story_image">
-                <Image src="/assets/images/card_ppl2.png" alt="Image" className="_public_story_img" width={100} height={100} />
+                <Image
+                  src="/assets/images/card_ppl2.png"
+                  alt=""
+                  className="_public_story_img"
+                  width={100}
+                  height={100}
+                  priority
+                />
                 <div className="_feed_inner_pulic_story_txt">
                   <p className="_feed_inner_pulic_story_para">Ryan Roslansky</p>
                 </div>
@@ -156,12 +171,21 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
           </div>
         </div>
 
-        {selectedFile && (
-          <div style={{ padding: '8px 0', fontSize: '13px', color: '#666' }}>
-            📎 {selectedFile.name}
-            <button type="button" onClick={() => setSelectedFile(null)} style={{ marginLeft: '8px', border: 'none', background: 'none', color: '#ff4444', cursor: 'pointer' }}>✕</button>
+        {selectedFile && imagePreviewUrl ? (
+          <div className="_create_post_attachment_preview">
+            <div className="_create_post_attachment_preview_frame">
+              <img src={imagePreviewUrl} alt="" className="_create_post_attachment_preview_img" />
+            </div>
+            <div className="_create_post_attachment_preview_bar">
+              <span className="_create_post_attachment_preview_name" title={selectedFile.name}>
+                {selectedFile.name}
+              </span>
+              <button type="button" className="_create_post_attachment_preview_remove" onClick={clearSelectedFile}>
+                Remove
+              </button>
+            </div>
           </div>
-        )}
+        ) : null}
 
         <div
           className="_feed_inner_text_area_privacy"
