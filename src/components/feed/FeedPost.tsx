@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import api from '@/lib/axios';
 import { useAuth } from '@/components/AuthProvider';
@@ -30,9 +30,104 @@ interface Post {
   likedByMe?: boolean;
 }
 
+interface CommentAuthor {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+interface ReplyNode {
+  id: string;
+  content: string;
+  createdAt: string;
+  author: CommentAuthor;
+  likedByMe?: boolean;
+  _count: { likes: number };
+}
+
+interface CommentNode {
+  id: string;
+  content: string;
+  createdAt: string;
+  author: CommentAuthor;
+  likedByMe?: boolean;
+  _count: { likes: number; replies: number };
+  replies: ReplyNode[];
+}
+
 interface FeedPostProps {
   post: Post;
   onInteraction?: () => void;
+}
+
+/** Top-level comment or a reply — used to find the globally latest activity */
+type FlatCommentRef =
+  | { kind: 'top'; comment: CommentNode }
+  | { kind: 'reply'; parent: CommentNode; reply: ReplyNode };
+
+function flattenCommentRefs(comments: CommentNode[]): FlatCommentRef[] {
+  const out: FlatCommentRef[] = [];
+  for (const c of comments) {
+    out.push({ kind: 'top', comment: c });
+    for (const r of c.replies || []) {
+      out.push({ kind: 'reply', parent: c, reply: r });
+    }
+  }
+  return out;
+}
+
+function getLatestCommentRef(comments: CommentNode[]): FlatCommentRef | null {
+  const flat = flattenCommentRefs(comments);
+  if (flat.length === 0) return null;
+  return flat.reduce((best, cur) => {
+    const tb = cur.kind === 'top' ? cur.comment.createdAt : cur.reply.createdAt;
+    const bb = best.kind === 'top' ? best.comment.createdAt : best.reply.createdAt;
+    return new Date(tb) > new Date(bb) ? cur : best;
+  });
+}
+
+/** Collapsed: only the latest comment/reply; if latest is a reply, show parent + that reply */
+function buildCollapsedThreads(comments: CommentNode[]): CommentNode[] {
+  const latest = getLatestCommentRef(comments);
+  if (!latest) return [];
+  if (latest.kind === 'top') {
+    return [{ ...latest.comment, replies: [] }];
+  }
+  return [{ ...latest.parent, replies: [latest.reply] }];
+}
+
+/** Toggle like on a top-level comment or a reply (immutable) */
+function mapCommentLikeToggle(comments: CommentNode[], commentId: string): CommentNode[] {
+  return comments.map((c) => {
+    if (c.id === commentId) {
+      const liked = !!c.likedByMe;
+      return {
+        ...c,
+        likedByMe: !liked,
+        _count: {
+          ...c._count,
+          likes: Math.max(0, c._count.likes + (liked ? -1 : 1)),
+        },
+      };
+    }
+    const replies = c.replies || [];
+    let hit = false;
+    const newReplies = replies.map((r) => {
+      if (r.id !== commentId) return r;
+      hit = true;
+      const liked = !!r.likedByMe;
+      return {
+        ...r,
+        likedByMe: !liked,
+        _count: {
+          ...r._count,
+          likes: Math.max(0, r._count.likes + (liked ? -1 : 1)),
+        },
+      };
+    });
+    return hit ? { ...c, replies: newReplies } : c;
+  });
 }
 
 function timeAgo(dateStr: string): string {
@@ -41,11 +136,156 @@ function timeAgo(dateStr: string): string {
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
   if (seconds < 60) return 'just now';
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return `${minutes}min`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return `${days}d`;
+}
+
+/** Sticker + GIF + submit (arrow send) under the comment textarea */
+function CommentComposerToolbar({ sendDisabled }: { sendDisabled: boolean }) {
+  return (
+    <div className="_feed_inner_comment_box_toolbar">
+      <div className="_feed_inner_comment_box_icon">
+        <button type="button" className="_feed_inner_comment_box_icon_btn" aria-label="Sticker">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16">
+            <path
+              fill="#000"
+              fillOpacity=".46"
+              fillRule="evenodd"
+              d="M13.167 6.534a.5.5 0 01.5.5c0 3.061-2.35 5.582-5.333 5.837V14.5a.5.5 0 01-1 0v-1.629C4.35 12.616 2 10.096 2 7.034a.5.5 0 011 0c0 2.679 2.168 4.859 4.833 4.859 2.666 0 4.834-2.18 4.834-4.86a.5.5 0 01.5-.5zM7.833.667a3.218 3.218 0 013.208 3.22v3.126c0 1.775-1.439 3.22-3.208 3.22a3.218 3.218 0 01-3.208-3.22V3.887c0-1.776 1.44-3.22 3.208-3.22zm0 1a2.217 2.217 0 00-2.208 2.22v3.126c0 1.223.991 2.22 2.208 2.22a2.217 2.217 0 002.208-2.22V3.887c0-1.224-.99-2.22-2.208-2.22z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+        <button type="button" className="_feed_inner_comment_box_icon_btn" aria-label="GIF">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16">
+            <path
+              fill="#000"
+              fillOpacity=".46"
+              fillRule="evenodd"
+              d="M10.867 1.333c2.257 0 3.774 1.581 3.774 3.933v5.435c0 2.352-1.517 3.932-3.774 3.932H5.101c-2.254 0-3.767-1.58-3.767-3.932V5.266c0-2.352 1.513-3.933 3.767-3.933h5.766zm0 1H5.101c-1.681 0-2.767 1.152-2.767 2.933v5.435c0 1.782 1.086 2.932 2.767 2.932h5.766c1.685 0 2.774-1.15 2.774-2.932V5.266c0-1.781-1.089-2.933-2.774-2.933zm.426 5.733l.017.015.013.013.009.008.037.037c.12.12.453.46 1.443 1.477a.5.5 0 11-.716.697S10.73 8.91 10.633 8.816a.614.614 0 00-.433-.118.622.622 0 00-.421.225c-1.55 1.88-1.568 1.897-1.594 1.922a1.456 1.456 0 01-2.057-.021s-.62-.63-.63-.642c-.155-.143-.43-.134-.594.04l-1.02 1.076a.498.498 0 01-.707.018.499.499 0 01-.018-.706l1.018-1.075c.54-.573 1.45-.6 2.025-.06l.639.647c.178.18.467.184.646.008l1.519-1.843a1.618 1.618 0 011.098-.584c.433-.038.854.088 1.19.363zM5.706 4.42c.921 0 1.67.75 1.67 1.67 0 .92-.75 1.67-1.67 1.67-.92 0-1.67-.75-1.67-1.67 0-.921.75-1.67 1.67-1.67zm0 1a.67.67 0 10.001 1.34.67.67 0 00-.002-1.34z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+      </div>
+      <button
+        type="submit"
+        className="_feed_inner_comment_box_send"
+        disabled={sendDisabled}
+        aria-label="Send comment"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+interface CommentBubbleProps {
+  author: CommentAuthor;
+  content: string;
+  createdAt: string;
+  likeCount: number;
+  likedByMe?: boolean;
+  onLike: () => void;
+  onReply?: () => void;
+  showReply?: boolean;
+  showShare?: boolean;
+}
+
+/** Matches docs/feed.html — bubble + floating reaction pill + Like./Reply./Share. row */
+function CommentBubble({
+  author,
+  content,
+  createdAt,
+  likeCount,
+  likedByMe,
+  onLike,
+  onReply,
+  showReply = true,
+  showShare = true,
+}: CommentBubbleProps) {
+  const name = `${author.firstName} ${author.lastName}`.trim();
+  return (
+    <div className="_comment_details">
+      <div className="_comment_details_top">
+        <div className="_comment_name">
+          <a href="#0" onClick={(e) => e.preventDefault()}>
+            <h4 className="_comment_name_title">{name}</h4>
+          </a>
+        </div>
+      </div>
+      <div className="_comment_status">
+        <p className="_comment_status_text">
+          <span>{content}</span>
+        </p>
+      </div>
+      {likeCount > 0 ? (
+        <button
+          type="button"
+          className="_total_reactions"
+          onClick={onLike}
+          aria-pressed={!!likedByMe}
+          aria-label={likedByMe ? 'Unlike comment' : 'Like comment'}
+        >
+          <div className="_total_react">
+            <span className={`_reaction_like ${likedByMe ? '_reaction_like_on' : ''}`}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+              </svg>
+            </span>
+          </div>
+          <span className="_total">{likeCount}</span>
+        </button>
+      ) : null}
+      <div className="_comment_reply">
+        <div className="_comment_reply_num">
+          <ul className="_comment_reply_list">
+            <li>
+              <span
+                role="presentation"
+                className={likedByMe ? '_comment_like_active' : undefined}
+                onClick={onLike}
+              >
+                Like.
+              </span>
+            </li>
+            {showReply && onReply ? (
+              <li>
+                <span role="presentation" onClick={onReply}>
+                  Reply.
+                </span>
+              </li>
+            ) : null}
+            {showShare ? (
+              <li>
+                <span role="presentation" onClick={(e) => e.preventDefault()}>
+                  Share
+                </span>
+              </li>
+            ) : null}
+            <li>
+              <span className="_time_link">.{timeAgo(createdAt)}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function FeedPost({ post, onInteraction }: FeedPostProps) {
@@ -59,12 +299,26 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
     setLiked(post.likedByMe ?? false);
     setLikeCount(post._count.likes);
   }, [post]);
-  const [commentCount] = useState(post._count.comments);
-  const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<any[]>([]);
+  const [commentCount, setCommentCount] = useState(post._count.comments);
+  const [comments, setComments] = useState<CommentNode[]>([]);
   const [commentText, setCommentText] = useState('');
+  const [replyText, setReplyText] = useState('');
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [loadingComments, setLoadingComments] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  /** false = show latest comment only (+ View N previous when N≥1) */
+  const [showAllComments, setShowAllComments] = useState(false);
+
+  useEffect(() => {
+    setCommentCount(post._count.comments);
+  }, [post]);
+
+  const flatCommentRefs = useMemo(() => flattenCommentRefs(comments), [comments]);
+  const totalCommentNodes = flatCommentRefs.length;
+  const threadsToRender = useMemo(() => {
+    if (showAllComments || totalCommentNodes <= 1) return comments;
+    return buildCollapsedThreads(comments);
+  }, [comments, showAllComments, totalCommentNodes]);
 
   const handleLike = async () => {
     try {
@@ -96,24 +350,21 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
     }
   };
 
-  const handleToggleComments = async () => {
-    if (!showComments) {
-      await fetchComments();
-    }
-    setShowComments(!showComments);
-  };
-
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     setLoadingComments(true);
     try {
-      const res = await api.get(`/interactions/post/${post.id}/comments`);
+      const res = await api.get<CommentNode[]>(`/interactions/post/${post.id}/comments`);
       setComments(res.data);
     } catch (error) {
       console.error('Failed to fetch comments', error);
     } finally {
       setLoadingComments(false);
     }
-  };
+  }, [post.id]);
+
+  useEffect(() => {
+    void fetchComments();
+  }, [fetchComments]);
 
   const avatarLikers =
     likeCount > 4 ? likers.slice(0, 4) : likers.slice(0, Math.min(likeCount, likers.length));
@@ -123,12 +374,47 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
     e.preventDefault();
     if (!commentText.trim()) return;
     try {
-      await api.post(`/interactions/post/${post.id}/comment`, { content: commentText });
+      await api.post(`/interactions/post/${post.id}/comment`, { content: commentText.trim() });
       setCommentText('');
       await fetchComments();
+      setCommentCount((c) => c + 1);
+      setShowAllComments(false);
       onInteraction?.();
     } catch (error) {
       console.error('Failed to add comment', error);
+    }
+  };
+
+  const handleSubmitReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyingToId || !replyText.trim()) return;
+    try {
+      await api.post(`/interactions/post/${post.id}/comment`, {
+        content: replyText.trim(),
+        parentId: replyingToId,
+      });
+      setReplyText('');
+      setReplyingToId(null);
+      await fetchComments();
+      setCommentCount((c) => c + 1);
+      setShowAllComments(false);
+      onInteraction?.();
+    } catch (error) {
+      console.error('Failed to add reply', error);
+    }
+  };
+
+  const handleCommentLike = async (commentId: string) => {
+    let before: CommentNode[] | null = null;
+    setComments((prev) => {
+      before = prev;
+      return mapCommentLikeToggle(prev, commentId);
+    });
+    try {
+      await api.post(`/interactions/comment/${commentId}/like`);
+    } catch (error) {
+      console.error('Failed to like comment', error);
+      if (before) setComments(before);
     }
   };
 
@@ -215,7 +501,7 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
         </div>
         <div className="_feed_inner_timeline_total_reacts_txt">
           <p className="_feed_inner_timeline_total_reacts_para1">
-            <a href="#0" onClick={(e) => { e.preventDefault(); handleToggleComments(); }}>
+            <a href="#0" onClick={(e) => { e.preventDefault(); void fetchComments(); }}>
               <span>{commentCount}</span> Comment
             </a>
           </p>
@@ -239,7 +525,11 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
             </span>
           </span>
         </button>
-        <button className="_feed_inner_timeline_reaction_comment _feed_reaction" onClick={handleToggleComments}>
+        <button
+          type="button"
+          className="_feed_inner_timeline_reaction_comment _feed_reaction"
+          onClick={() => void fetchComments()}
+        >
           <span className="_feed_inner_timeline_reaction_link">
             <span>
               <svg className="_reaction_svg" xmlns="http://www.w3.org/2000/svg" width="21" height="21" fill="none" viewBox="0 0 21 21">
@@ -262,8 +552,7 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
         </button>
       </div>
 
-      {showComments && (
-        <div className="_feed_inner_timeline_cooment_area">
+      <div className="_feed_inner_timeline_cooment_area">
           <div className="_feed_inner_comment_box">
             <form className="_feed_inner_comment_box_form" onSubmit={handleSubmitComment}>
               <div className="_feed_inner_comment_box_content">
@@ -287,56 +576,115 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
                   />
                 </div>
               </div>
+              <CommentComposerToolbar sendDisabled={!commentText.trim()} />
             </form>
           </div>
 
           {loadingComments ? (
-            <div style={{ padding: '12px 24px', fontSize: '13px', color: '#999' }}>Loading comments...</div>
+            <div style={{ padding: '8px 0', fontSize: '13px', color: '#999' }}>Loading comments...</div>
           ) : (
             <div className="_timline_comment_main">
-              {comments.map((comment) => (
-                <div key={comment.id} className="_comment_main">
-                  <div className="_comment_image">
-                    <a href="#0" className="_comment_image_link">
-                      <NameAvatar user={comment.author} size={40} className="_comment_img1" />
-                    </a>
-                  </div>
-                  <div className="_comment_area">
-                    <div className="_comment_area_box">
-                      <h5 className="_comment_name">{comment.author.firstName} {comment.author.lastName}</h5>
-                      <p className="_comment_text">{comment.content}</p>
-                    </div>
-                    <div className="_comment_reply">
-                      <div className="_comment_reply_num">
-                        <ul className="_comment_reply_list">
-                          <li><span>Like.</span></li>
-                          <li><span>Reply.</span></li>
-                          <li><span className="_time_link">.{timeAgo(comment.createdAt)}</span></li>
-                        </ul>
-                      </div>
-                    </div>
-                    {comment.replies?.map((reply: any) => (
-                      <div key={reply.id} className="_comment_main" style={{ marginLeft: '24px', marginTop: '8px' }}>
-                        <div className="_comment_image">
-                          <a href="#0" className="_comment_image_link">
-                            <NameAvatar user={reply.author} size={40} className="_comment_img1" />
-                          </a>
-                        </div>
-                        <div className="_comment_area">
-                          <div className="_comment_area_box">
-                            <h5 className="_comment_name">{reply.author.firstName} {reply.author.lastName}</h5>
-                            <p className="_comment_text">{reply.content}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              {totalCommentNodes > 1 && !showAllComments && (
+                <div className="_previous_comment">
+                  <button
+                    type="button"
+                    className="_previous_comment_txt"
+                    onClick={() => setShowAllComments(true)}
+                  >
+                    View {totalCommentNodes - 1} previous comments
+                  </button>
                 </div>
+              )}
+              {showAllComments && totalCommentNodes > 1 && (
+                <div className="_previous_comment">
+                  <button
+                    type="button"
+                    className="_previous_comment_txt"
+                    onClick={() => setShowAllComments(false)}
+                  >
+                    Hide previous comments
+                  </button>
+                </div>
+              )}
+              {threadsToRender.map((comment) => (
+                <React.Fragment key={comment.id}>
+                  <div className="_comment_main _feed_comment_compact">
+                    <div className="_comment_image">
+                      <a href="#0" className="_comment_image_link" onClick={(e) => e.preventDefault()}>
+                        <NameAvatar user={comment.author} size={36} className="_comment_img1" />
+                      </a>
+                    </div>
+                    <div className="_comment_area">
+                      <CommentBubble
+                        author={comment.author}
+                        content={comment.content}
+                        createdAt={comment.createdAt}
+                        likeCount={comment._count.likes}
+                        likedByMe={comment.likedByMe}
+                        onLike={() => handleCommentLike(comment.id)}
+                        onReply={() => {
+                          setReplyingToId((prev) => (prev === comment.id ? null : comment.id));
+                          setReplyText('');
+                        }}
+                        showReply
+                        showShare
+                      />
+                      {replyingToId === comment.id ? (
+                        <div className="_feed_inner_comment_box">
+                          <form className="_feed_inner_comment_box_form" onSubmit={handleSubmitReply}>
+                            <div className="_feed_inner_comment_box_content">
+                              <div className="_feed_inner_comment_box_content_image">
+                                {currentUser ? (
+                                  <NameAvatar user={currentUser} size={26} className="_comment_img" />
+                                ) : null}
+                              </div>
+                              <div className="_feed_inner_comment_box_content_txt">
+                                <textarea
+                                  className="form-control _comment_textarea"
+                                  placeholder="Write a comment"
+                                  value={replyText}
+                                  onChange={(e) => setReplyText(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault();
+                                      handleSubmitReply(e);
+                                    }
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <CommentComposerToolbar sendDisabled={!replyText.trim()} />
+                          </form>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  {comment.replies?.map((reply) => (
+                    <div key={reply.id} className="_comment_main _feed_comment_main_nested _feed_comment_compact">
+                      <div className="_comment_image">
+                        <a href="#0" className="_comment_image_link" onClick={(e) => e.preventDefault()}>
+                          <NameAvatar user={reply.author} size={32} className="_comment_img1" />
+                        </a>
+                      </div>
+                      <div className="_comment_area">
+                        <CommentBubble
+                          author={reply.author}
+                          content={reply.content}
+                          createdAt={reply.createdAt}
+                          likeCount={reply._count.likes}
+                          likedByMe={reply.likedByMe}
+                          onLike={() => handleCommentLike(reply.id)}
+                          showReply={false}
+                          showShare
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </React.Fragment>
               ))}
             </div>
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

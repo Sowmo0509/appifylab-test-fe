@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
@@ -7,9 +7,12 @@ import LeftSidebar from '@/components/layout/LeftSidebar';
 import RightSidebar from '@/components/layout/RightSidebar';
 import FeedMiddle from '@/components/feed/FeedMiddle';
 
+const FEED_DARK_STORAGE_KEY = 'appifylab-feed-dark';
+
 export default function FeedPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const layoutRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -17,12 +20,36 @@ export default function FeedPage() {
     }
   }, [user, loading, router]);
 
+  useEffect(() => {
+    const el = layoutRef.current;
+    if (!el || typeof window === 'undefined') return;
+    try {
+      if (window.localStorage.getItem(FEED_DARK_STORAGE_KEY) === '1') {
+        el.classList.add('_dark_wrapper');
+      }
+    } catch {
+      /* private mode */
+    }
+  }, [user, loading]);
+
+  const toggleDarkMode = () => {
+    const el = layoutRef.current;
+    if (!el) return;
+    el.classList.toggle('_dark_wrapper');
+    const isDark = el.classList.contains('_dark_wrapper');
+    try {
+      window.localStorage.setItem(FEED_DARK_STORAGE_KEY, isDark ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  };
+
   if (loading || !user) return <div>Loading...</div>;
 
   return (
-    <div className="_layout _layout_main_wrapper">
+    <div ref={layoutRef} className="_layout _layout_main_wrapper">
       <div className="_layout_mode_swithing_btn">
-        <button type="button" className="_layout_swithing_btn_link">
+        <button type="button" className="_layout_swithing_btn_link" onClick={toggleDarkMode} aria-label="Toggle dark mode">
           <div className="_layout_swithing_btn">
             <div className="_layout_swithing_btn_round"></div>
           </div>
