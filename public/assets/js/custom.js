@@ -1,19 +1,4 @@
-/* Profile dropdown — only run when elements exist (feed layout) */
-(function () {
-  var profileDropdown = document.querySelector("#_prfoile_drop");
-  var profileDropShowBtn = document.querySelector("#_profile_drop_show_btn");
-  if (!profileDropShowBtn || !profileDropdown) return;
-
-  var isDropShow = false;
-  profileDropShowBtn.addEventListener("click", function () {
-    isDropShow = !isDropShow;
-    if (isDropShow) {
-      profileDropdown.classList.add("show");
-    } else {
-      profileDropdown.classList.remove("show");
-    }
-  });
-})();
+/* Profile menu: controlled by React (Header.tsx) */
 
 /* Timeline dropdown — IDs used in legacy HTML only; skip if missing */
 (function () {

@@ -15,6 +15,7 @@ interface AuthContextType {
   loading: boolean;
   checkAuth: () => Promise<void>;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -22,6 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   checkAuth: async () => {},
   setUser: () => {},
+  logout: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -40,12 +42,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const logout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      /* still clear session locally */
+    }
+    setUser(null);
+  };
+
   useEffect(() => {
     checkAuth();
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, checkAuth, setUser }}>
+    <AuthContext.Provider value={{ user, loading, checkAuth, setUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
