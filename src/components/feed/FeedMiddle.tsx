@@ -1,7 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import api from '@/lib/axios';
-
 import CreatePost from './CreatePost';
 import FeedPost from './FeedPost';
 
@@ -14,7 +13,7 @@ export default function FeedMiddle() {
       const response = await api.get('/posts');
       setPosts(response.data);
     } catch (error) {
-      console.error("Failed to fetch posts", error);
+      console.error('Failed to fetch posts', error);
     } finally {
       setLoading(false);
     }
@@ -28,9 +27,13 @@ export default function FeedMiddle() {
     <div className="col-xl-6 col-lg-6 col-md-12 col-sm-12">
       <CreatePost onPostCreated={fetchPosts} />
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '20px' }}>Loading posts...</div>
+        <div className="_feed_inner_timeline_post_area _b_radious6 _padd_b24 _padd_t24 _mar_b16" style={{ textAlign: 'center' }}>
+          Loading posts...
+        </div>
       ) : posts.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '20px' }}>No posts yet. Be the first to post!</div>
+        <div className="_feed_inner_timeline_post_area _b_radious6 _padd_b24 _padd_t24 _mar_b16" style={{ textAlign: 'center' }}>
+          No posts yet. Be the first to post!
+        </div>
       ) : (
         posts.map((post) => (
           <FeedPost key={post.id} post={post} onInteraction={fetchPosts} />
