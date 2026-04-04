@@ -129,8 +129,8 @@ export default function LeftSidebar() {
 												See all
 											</a>
 										</div>
-										<a className="_left_inner_event_card_link" href="event-single.html">
-											<div className="_left_inner_event_card">
+										<div className="_left_inner_event_card">
+											<Link className="_left_inner_event_card_link" href="event-single.html">
 												<div className="_left_inner_event_card_iamge">
 													<Image src="/assets/images/feed_event1.png" alt="Image" className="_card_img"width={100} height={100} />
 												</div>
@@ -144,13 +144,14 @@ export default function LeftSidebar() {
 													</div>
 												</div>
 												<hr className="_underline"/>
-												<div className="_left_inner_event_bottom">
-													<p className="_left_iner_event_bottom">17 People Going</p> <a href="#0" className="_left_iner_event_bottom_link">Going</a>
-												</div>
+											</Link>
+											<div className="_left_inner_event_bottom">
+												<p className="_left_iner_event_bottom">17 People Going</p>{' '}
+												<a href="#0" className="_left_iner_event_bottom_link">Going</a>
 											</div>
-										</a>
-										<a className="_left_inner_event_card_link" href="event-single.html">
-											<div className="_left_inner_event_card">
+										</div>
+										<div className="_left_inner_event_card">
+											<Link className="_left_inner_event_card_link" href="event-single.html">
 												<div className="_left_inner_event_card_iamge">
 													<Image src="/assets/images/feed_event1.png" alt="Image" className="_card_img"width={100} height={100} />
 												</div>
@@ -164,11 +165,12 @@ export default function LeftSidebar() {
 													</div>
 												</div>
 												<hr className="_underline"/>
-												<div className="_left_inner_event_bottom">
-													<p className="_left_iner_event_bottom">17 People Going</p> <a href="#0" className="_left_iner_event_bottom_link">Going</a>
-												</div>
+											</Link>
+											<div className="_left_inner_event_bottom">
+												<p className="_left_iner_event_bottom">17 People Going</p>{' '}
+												<a href="#0" className="_left_iner_event_bottom_link">Going</a>
 											</div>
-										</a>
+										</div>
 									</div>
 								</div>
 							</div>

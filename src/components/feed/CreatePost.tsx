@@ -12,6 +12,7 @@ interface CreatePostProps {
 export default function CreatePost({ onPostCreated }: CreatePostProps) {
   const { user } = useAuth();
   const [content, setContent] = useState('');
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -22,6 +23,7 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
     try {
       const formData = new FormData();
       formData.append('content', content);
+      formData.append('visibility', visibility);
       if (selectedFile) {
         formData.append('image', selectedFile);
       }
@@ -29,6 +31,7 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setContent('');
+      setVisibility('PUBLIC');
       setSelectedFile(null);
       onPostCreated?.();
     } catch (error) {
@@ -63,9 +66,17 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
             <div className="_feed_inner_profile_story _b_radious6 ">
               <div className="_feed_inner_profile_story_image">
                 {user ? (
-                  <NameAvatar user={user} size={56} className="_profile_story_img" />
+                  <NameAvatar user={user} size={100} rounded="md" className="_profile_story_img" />
                 ) : (
-                  <div className="_profile_story_img" style={{ width: 56, height: 56, borderRadius: 6, background: 'var(--color3, #e8e8e8)' }} />
+                  <div
+                    className="_profile_story_img"
+                    style={{
+                      width: 100,
+                      height: 100,
+                      borderRadius: 6,
+                      background: 'var(--color3, #e8e8e8)',
+                    }}
+                  />
                 )}
                 <div className="_feed_inner_story_txt">
                   <div className="_feed_inner_story_btn">
@@ -151,6 +162,33 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
             <button type="button" onClick={() => setSelectedFile(null)} style={{ marginLeft: '8px', border: 'none', background: 'none', color: '#ff4444', cursor: 'pointer' }}>✕</button>
           </div>
         )}
+
+        <div
+          className="_feed_inner_text_area_privacy"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '10px 16px',
+            marginTop: '12px',
+            paddingTop: '12px',
+            borderTop: '1px solid var(--bg4, #eee)',
+          }}
+        >
+          <label htmlFor="create-post-visibility" style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color6, #112032)', margin: 0 }}>
+            Privacy
+          </label>
+          <select
+            id="create-post-visibility"
+            className="form-select form-select-sm"
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value as 'PUBLIC' | 'PRIVATE')}
+            style={{ maxWidth: '220px', fontSize: '13px', cursor: 'pointer' }}
+          >
+            <option value="PUBLIC">Public — visible to everyone</option>
+            <option value="PRIVATE">Private — only visible to you</option>
+          </select>
+        </div>
 
         <input
           type="file"
