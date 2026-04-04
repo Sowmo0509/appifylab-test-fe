@@ -2,12 +2,15 @@
 import React, { useState, useRef } from 'react';
 import Image from 'next/image';
 import api from '@/lib/axios';
+import { useAuth } from '@/components/AuthProvider';
+import { NameAvatar } from '@/components/ui/name-avatar';
 
 interface CreatePostProps {
   onPostCreated?: () => void;
 }
 
 export default function CreatePost({ onPostCreated }: CreatePostProps) {
+  const { user } = useAuth();
   const [content, setContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -59,7 +62,11 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
           <div className="col-xl-3 col-lg-3 col-md-4 col-sm-4 col">
             <div className="_feed_inner_profile_story _b_radious6 ">
               <div className="_feed_inner_profile_story_image">
-                <Image src="/assets/images/card_ppl1.png" alt="Image" className="_profile_story_img" width={100} height={100} />
+                {user ? (
+                  <NameAvatar user={user} size={56} className="_profile_story_img" />
+                ) : (
+                  <div className="_profile_story_img" style={{ width: 56, height: 56, borderRadius: 6, background: 'var(--color3, #e8e8e8)' }} />
+                )}
                 <div className="_feed_inner_story_txt">
                   <div className="_feed_inner_story_btn">
                     <button className="_feed_inner_story_btn_link">
@@ -118,7 +125,9 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
       <div className="_feed_inner_text_area _b_radious6 _padd_b24 _padd_t24 _padd_r24 _padd_l24 _mar_b16">
         <div className="_feed_inner_text_area_box">
           <div className="_feed_inner_text_area_box_image">
-            <Image src="/assets/images/txt_img.png" alt="Image" className="_txt_img" width={100} height={100} />
+            {user ? (
+              <NameAvatar user={user} size={40} className="_txt_img" />
+            ) : null}
           </div>
           <div className="form-floating _feed_inner_text_area_box_form ">
             <textarea

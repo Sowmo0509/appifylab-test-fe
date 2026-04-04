@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/components/AuthProvider';
+import { NameAvatar } from '@/components/ui/name-avatar';
 
 export default function Header() {
   const { user, loading } = useAuth();
@@ -135,7 +136,9 @@ export default function Header() {
             </ul>
             <div className="_header_nav_profile">
               <div className="_header_nav_profile_image">
-                <Image src="/assets/images/profile.png" alt="Image" className="_nav_profile_img" width={100} height={100} />
+                {user ? (
+                  <NameAvatar user={user} size={24} className="_nav_profile_img" />
+                ) : null}
               </div>
               <div className="_header_nav_dropdown">
                 <p className="_header_nav_para">{displayName}</p>
@@ -149,7 +152,9 @@ export default function Header() {
               <div id="_prfoile_drop" className="_nav_profile_dropdown _profile_dropdown">
                 <div className="_nav_profile_dropdown_info">
                   <div className="_nav_profile_dropdown_image">
-                    <Image src="/assets/images/profile.png" alt="Image" className="_nav_drop_img" width={100} height={100} />
+                    {user ? (
+                      <NameAvatar user={user} size={54} className="_nav_drop_img" />
+                    ) : null}
                   </div>
                   <div className="_nav_profile_dropdown_info_txt">
                     <h4 className="_nav_dropdown_title">{displayName}</h4>

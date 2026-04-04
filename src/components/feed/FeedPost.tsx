@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import api from '@/lib/axios';
 import { useAuth } from '@/components/AuthProvider';
+import { NameAvatar } from '@/components/ui/name-avatar';
 
 interface PostAuthor {
   id: string;
@@ -11,16 +12,10 @@ interface PostAuthor {
   email: string;
 }
 
-interface LikePreviewUser {
-  id: string;
-  firstName: string;
-  lastName: string;
-}
-
 interface PostLikePreview {
   id: string;
   userId: string;
-  user: LikePreviewUser;
+  user: { id: string; firstName: string; lastName: string };
 }
 
 interface Post {
@@ -33,21 +28,6 @@ interface Post {
   _count: { likes: number; comments: number };
   likePreview?: PostLikePreview[];
   likedByMe?: boolean;
-}
-
-function initials(u: LikePreviewUser): string {
-  const a = (u.firstName?.[0] ?? '').toUpperCase();
-  const b = (u.lastName?.[0] ?? '').toUpperCase();
-  return (a + b) || '?';
-}
-
-function avatarBgForUserId(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const h = Math.abs(hash) % 360;
-  return `hsl(${h} 42% 46%)`;
 }
 
 interface FeedPostProps {
@@ -158,7 +138,7 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
         <div className="_feed_inner_timeline_post_top">
           <div className="_feed_inner_timeline_post_box">
             <div className="_feed_inner_timeline_post_box_image">
-              <Image src="/assets/images/post_img.png" alt="" className="_post_img" width={100} height={100} />
+              <NameAvatar user={post.author} size={44} className="_post_img" />
             </div>
             <div className="_feed_inner_timeline_post_box_txt">
               <h4 className="_feed_inner_timeline_post_box_title">{post.author.firstName} {post.author.lastName}</h4>
@@ -222,29 +202,12 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
       <div className="_feed_inner_timeline_total_reacts _padd_r24 _padd_l24 _mar_b26">
         <div className="_feed_inner_timeline_total_reacts_image">
           {avatarLikers.map((like, i) => (
-            <div
+            <NameAvatar
               key={like.id}
+              user={like.user}
+              size={32}
               className={i === 0 ? '_react_img1' : '_react_img'}
-              title={`${like.user.firstName} ${like.user.lastName}`}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 11,
-                fontWeight: 600,
-                color: '#fff',
-                flexShrink: 0,
-                width: 32,
-                height: 32,
-                minWidth: 32,
-                borderRadius: '50%',
-                overflow: 'hidden',
-                boxSizing: 'border-box',
-                background: avatarBgForUserId(like.user.id),
-              }}
-            >
-              {initials(like.user)}
-            </div>
+            />
           ))}
           {likeOverflow > 0 && (
             <p className="_feed_inner_timeline_total_reacts_para">+{likeOverflow}</p>
@@ -305,7 +268,9 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
             <form className="_feed_inner_comment_box_form" onSubmit={handleSubmitComment}>
               <div className="_feed_inner_comment_box_content">
                 <div className="_feed_inner_comment_box_content_image">
-                  <Image src="/assets/images/comment_img.png" alt="" className="_comment_img" width={100} height={100} />
+                  {currentUser ? (
+                    <NameAvatar user={currentUser} size={26} className="_comment_img" />
+                  ) : null}
                 </div>
                 <div className="_feed_inner_comment_box_content_txt">
                   <textarea
@@ -333,7 +298,7 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
                 <div key={comment.id} className="_comment_main">
                   <div className="_comment_image">
                     <a href="#0" className="_comment_image_link">
-                      <Image src="/assets/images/txt_img.png" alt="" className="_comment_img1" width={100} height={100} />
+                      <NameAvatar user={comment.author} size={40} className="_comment_img1" />
                     </a>
                   </div>
                   <div className="_comment_area">
@@ -354,7 +319,7 @@ export default function FeedPost({ post, onInteraction }: FeedPostProps) {
                       <div key={reply.id} className="_comment_main" style={{ marginLeft: '24px', marginTop: '8px' }}>
                         <div className="_comment_image">
                           <a href="#0" className="_comment_image_link">
-                            <Image src="/assets/images/txt_img.png" alt="" className="_comment_img1" width={100} height={100} />
+                            <NameAvatar user={reply.author} size={40} className="_comment_img1" />
                           </a>
                         </div>
                         <div className="_comment_area">
